@@ -1,0 +1,49 @@
+# Set the directory to the data
+setwd()
+
+# Load the data sets
+data.list<-list()
+listcsv<-dir(pattern ="*.csv")
+for (i in 1:length(listcsv)){
+  data.list[[i]]<-read.csv(listcsv[i],header=TRUE)
+}
+str(data.list, max=1)
+str(data.list[[1]])    #to access 1980 data: data.list[[1]]
+str(data.list[[2]])    #to access 1981 data: data.list[[2]]
+
+# Check the data sets features (dimension, missing values, etc.
+data.list.rows<-c()
+data.list.cols<-c()
+data.list.miss.years<-c()
+for(i in 1:length(listcsv)){
+  data.list.rows[i]<-nrow(data.list[[i]])
+  data.list.cols[i]<-ncol(data.list[[i]])
+  data.list.miss.years[i]<-sum(is.na(data.list[[i]]$year))
+}
+print(data.list.rows)
+print(data.list.cols)
+sum(data.list.rows)    #number of rows of the merged data
+print(data.list.miss.years) 
+
+# There are missing years in data sets 1986.csv and 1996.csv. Fix them.
+data.list[[7]]$year[is.na(data.list[[7]]$year)]<-1986
+data.list[[17]]$year[is.na(data.list[[17]]$year)]<-1996
+
+# Merge the data sets
+merged.data<-data.list[[1]]
+for (i in 2:length(listcsv)){
+  merged.data<-rbind(merged.data,data.list[[i]])
+}
+head(merged.data)
+str(merged.data)
+dim(merged.data)    #number of rows should be the same as shown above
+
+# Check the features of the merged data
+unique(merged.data$year)
+unique(merged.data$county)    #county names repeat: problem!
+sort(unique(merged.data$countycode), decreasing=FALSE)    #county id's seem to be unique
+
+# Remove redundant countycode's: 991 (sum of others) and 999 (state totals)
+merged.data<-merged.data[merged.data$countycode!=991,]
+sort(unique(merged.data$countycode), decreasing=FALSE)
+merged.data<-merged.data[merged.data$countycode!=999,]    #Keep state totals for comparison

@@ -1,0 +1,114 @@
+#data reform
+drought <- read.csv("intersection_percentage.csv")
+drought<- drought[c(-1)]
+drought$County_FIPS_ID <-drought$County_FIPS_ID+6000
+colnames(drought)<- c("fips","region","area","percentage")
+drought$percentage<- drought$percentage/100
+drought<- merge(drought, county_fips, by.x = "fips",by.y ="fips", all.x = TRUE)
+
+index <- read.csv("CDODiv3869197765428.txt", sep="")
+index<- index[c(2,3,6,9)]
+index$year<- substr(index$YearMonth, 0,4)
+
+#extracting mean min max from raw data
+index<-index[order(index$Division,index$year,decreasing=FALSE),]
+index.Division<-unique(index$Division)
+index.year<-unique(index$year)
+
+storage.mean1<-matrix(nrow=36,ncol=5)
+storage.mean2<-NA
+
+for(j in 1:length(index.Division)){#NOTE: if you re-run the loop, make sure you re-run the storages first!
+  for(k in 1:length(index.year)){
+    storage.mean1[k,1]<-index.Division[j]
+    storage.mean1[k,2]<-index.year[k]
+    storage.mean1[k,3]<-mean(index$PDSI[index$Division==index.Division[j] & index$year==index.year[k]],
+                             na.rm=TRUE)
+    storage.mean1[k,4]<-min(index$PDSI[index$Division==index.Division[j] & index$year==index.year[k]],
+                            na.rm=TRUE)
+    storage.mean1[k,5]<-max(index$PDSI[index$Division==index.Division[j] & index$year==index.year[k]],
+                            na.rm=TRUE)
+  }
+  if(j==1){
+    storage.mean2<-storage.mean1
+  }
+  else{
+    storage.mean2<-rbind(storage.mean2,storage.mean1)
+  }
+  storage.mean1<-matrix(nrow=36,ncol=5)
+}
+
+index.final<-as.data.frame(storage.mean2)
+colnames(index.final)<- c("region","year","dmean","dmin","dmax")
+index.final[,1]<-as.numeric(as.character(index.final[,1]))
+index.final[,2]<-as.numeric(as.character(index.final[,2]))
+index.final[,3]<-as.numeric(as.character(index.final[,3])) 
+index.final[,4]<-as.numeric(as.character(index.final[,4])) 
+index.final[,5]<-as.numeric(as.character(index.final[,5])) 
+
+#Drought index summary table
+index.final<-index.final[order(index.final$year,decreasing=FALSE),]
+index.year<-unique(index.final$year)
+
+storage1<-matrix(nrow=36,ncol=10)
+
+for(k in 1:length(index.year)){
+  storage1[k,1]<-index.year[k]
+  storage1[k,2]<-mean(index.final$dmin[index.final$year==index.year[k]],
+                      na.rm=TRUE)
+  storage1[k,3]<-min(index.final$dmin[index.final$year==index.year[k]],
+                     na.rm=TRUE)
+  storage1[k,4]<-max(index.final$dmin[index.final$year==index.year[k]],
+                     na.rm=TRUE)
+  storage1[k,5]<-mean(index.final$dmax[index.final$year==index.year[k]],
+                      na.rm=TRUE)
+  storage1[k,6]<-min(index.final$dmax[index.final$year==index.year[k]],
+                     na.rm=TRUE)
+  storage1[k,7]<-max(index.final$dmax[index.final$year==index.year[k]],
+                     na.rm=TRUE)
+  storage1[k,8]<-mean(index.final$dmean[index.final$year==index.year[k]],
+                      na.rm=TRUE)
+  storage1[k,9]<-min(index.final$dmean[index.final$year==index.year[k]],
+                     na.rm=TRUE)
+  storage1[k,10]<-max(index.final$dmean[index.final$year==index.year[k]],
+                      na.rm=TRUE)
+  
+}
+
+summary.final<-as.data.frame(storage1)
+colnames(summary.final)<- c("year","mean.min","min.min","max.min","mean.max","min.max","max.max","mean.mean","mean.min","mean.max")
+
+#setwd()
+#write.csv(summary.final, file="pdsi.summary.csv")
+
+# pdsi for each counties
+drought<-drought[order(drought$fips,decreasing=FALSE),]
+index.final<- index.final[order(index.final$year,decreasing = FALSE),]
+drought.fips<-unique(drought$fips)
+drought.year<-unique(index.final$year)
+
+storage1<-matrix(nrow=36,ncol=5)
+storage2<-NA
+
+for(j in 1:length(drought.fips)) {  #NOTE: if you re-run the loop, make sure you re-run the storages first!
+  for (k in 1:length(drought.year)) {
+    storage1[k,1]<-drought.fips[j]
+    storage1[k,2]<-drought.year[k]
+    storage1[k,3]<-sum(drought$percentage[drought$fips==drought.fips[j]]*index.final$dmean[index.final$year== drought.year[k] & 
+                                                                                             index.final$region %in% unique(drought$region[drought$fips== drought.fips[j]])])
+    storage1[k,4]<-sum(drought$percentage[drought$fips==drought.fips[j]]*index.final$dmin[index.final$year== drought.year[k] & 
+                                                                                            index.final$region %in% unique(drought$region[drought$fips== drought.fips[j]])])
+    storage1[k,5]<-sum(drought$percentage[drought$fips==drought.fips[j]]*index.final$dmax[index.final$year== drought.year[k] & 
+                                                                                            index.final$region %in% unique(drought$region[drought$fips== drought.fips[j]])])
+  }
+  if(j==1){
+    storage2<-storage1
+  }
+  else{
+    storage2<-rbind(storage2,storage1)
+  }
+  storage1<-matrix(nrow=36,ncol=5)
+}
+
+pdsi.final<-as.data.frame(storage2)
+colnames(pdsi.final)<- c("fips","year","mean.pdsi", "min.pdsi", "max.pdsi")

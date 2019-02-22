@@ -10,6 +10,7 @@ index <- read.csv("CDODiv3869197765428.txt", sep="")
 index<- index[c(2,3,6,9)]
 index$year<- substr(index$YearMonth, 0,4)
 
+
 #extracting mean min max from raw data
 index<-index[order(index$Division,index$year,decreasing=FALSE),]
 index.Division<-unique(index$Division)

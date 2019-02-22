@@ -1,0 +1,271 @@
+#import Lee2008.csv
+#a
+library(stargazer)
+stargazer(Lee2008, type = "text")
+
+#b
+hist(Lee2008$margin, 
+     xlab = "Party margin of victory at t", 
+     main = "Histogram and density plot of margin")
+par(new=TRUE, mar=c(5,4,4,3.5))
+plot(density(Lee2008$margin) , 
+     xlab = "", 
+     ylab = "", 
+     main = "", 
+     axes=FALSE,
+     xlim = range(Lee2008$margin))
+axis(4)
+mtext("Density", side = 4, line = 2.5)
+
+hist(Lee2008$vote, 
+     xlab = "Party vote share at t+2", 
+     main = "Histogram and density plot of vote")
+par(new=TRUE, mar=c(5,4,4,4))
+plot(density(Lee2008$vote) , 
+     xlab = "", 
+     ylab = "", 
+     main = "", 
+     axes=FALSE,
+     xlim= range(Lee2008$vote))
+axis(4)
+mtext("Density", side = 4, line = 3)
+
+#both plots share simular patterns with brunching at both tails. Majority of the weight falls at the center of the plots.
+
+#c
+plot(Lee2008$margin, Lee2008$vote, 
+     xlab="Margin of victory, t",
+     ylab="Vote share, t+2",
+     main="Plot of Vote on Margin",
+     pch=20)
+abline(v=0,col=2,
+       lty=2,
+       lwd=1)
+#There seems to be the present of treatment effect but we cannot be sure.
+
+#d
+d<- as.numeric(Lee2008$margin>0)
+plot(Lee2008$margin, d,
+     xlab="Margin of victory, t",
+     ylab="Treatment indicator",
+     main="Plot of Treatment Indicator on Margin",
+     pch=20) 
+abline(v=0,col=2,
+       lty=2,
+       lwd=1)
+# shape RD
+library(rdrobust)
+summary(rdplot(Lee2008$vote, Lee2008$margin, 
+       x.label = "Party margin of victory at t", 
+       y.label ="Average value of victory E(vote|margin)",
+       title ="Plot of E(vote|margin) on margin")) # default c=0, p=4, kernal="uni", binselect = "esmv"
+#The plot shows a regression discontinuity. The optimal bin length on the left is 0.012 while on the right is 0.008.
+#We use 4th order polynormial; this picks up the non linearity of the data especially towards the tail on the left side. 
+
+#e
+ols<- lm(vote~d+margin+I(d*margin)+I(margin^2)+I(d*margin^2)+ #the cutoff in our case is "0"
+           I(margin^3)+I(d*margin^3)+I(margin^4)+I(d*margin^4),
+         data = Lee2008)
+summary(ols)
+Lee2008$pred<- predict(ols)
+# The treatment effect is 0.076590 and it is highly statistically significant.
+# Therefore, we can conclude that incumbency effect exists and this effect is statistically significant.
+
+#f
+plot(Lee2008$margin, Lee2008$vote, 
+     xlab = "Margin of victory, t", 
+     ylab = "Vote share, t+2", 
+     main = "Plot of Vote on Margin",
+     pch=20,
+     col="Grey")
+Lee2008<- Lee2008[order(Lee2008$margin),]
+with(subset(Lee2008, margin<=0), lines(margin, pred, col="Blue"))
+with(subset(Lee2008, margin>0), lines(margin, pred, col="Blue"))
+abline(v=0,col=2,
+       lty=2,
+       lwd=1)
+# 4th order polynorminal fit with uniform kernal provides very similar plot 
+# as that of OLS regression with 4th order polynorminal.
+
+#gi
+margin_0.8<- Lee2008$margin[Lee2008$margin>=-0.8 & Lee2008$margin<= 0.8] #ad hoc approach
+vote_0.8<- Lee2008$vote[Lee2008$margin>=-0.8 & Lee2008$margin<= 0.8]
+d_0.8<- as.numeric(margin_0.8>0)
+summary(lm(vote_0.8~d_0.8+margin_0.8+I(d_0.8*margin_0.8)+I(margin_0.8^2)+I(d_0.8*margin_0.8^2)+
+             I(margin_0.8^3)+I(d_0.8*margin_0.8^3)+I(margin_0.8^4)+I(d_0.8*margin_0.8^4)))
+#ii
+margin_0.4<- Lee2008$margin[Lee2008$margin>=-0.4 & Lee2008$margin<= 0.4] #ad hoc approach
+vote_0.4<- Lee2008$vote[Lee2008$margin>=-0.4 & Lee2008$margin<= 0.4]
+d_0.4<- as.numeric(margin_0.4>0)
+summary(lm(vote_0.4~d_0.4+margin_0.4+I(d_0.4*margin_0.4)+I(margin_0.4^2)+I(d_0.4*margin_0.4^2)+
+             I(margin_0.4^3)+I(d_0.4*margin_0.4^3)+I(margin_0.4^4)+I(d_0.4*margin_0.4^4)))
+#iii
+margin_0.1<- Lee2008$margin[Lee2008$margin>=-0.1 & Lee2008$margin<= 0.1] #ad hoc approach
+vote_0.1<- Lee2008$vote[Lee2008$margin>=-0.1 & Lee2008$margin<= 0.1]
+d_0.1<- as.numeric(margin_0.1>0)
+summary(lm(vote_0.1~d_0.1+margin_0.1+I(d_0.1*margin_0.1)+I(margin_0.1^2)+I(d_0.1*margin_0.1^2)+
+             I(margin_0.1^3)+I(d_0.1*margin_0.1^3)+I(margin_0.1^4)+I(d_0.1*margin_0.1^4)))
+
+rdplot(y=vote_0.8,
+       x=margin_0.8,
+       title = "Plot of Vote on Margin",
+       y.label = "Vote share, t+2",
+       x.label = "Margin of victory, t",
+       x.lim = c(-1,1),
+       y.lim = c(0,1))
+par(new=TRUE)
+rdplot(y=vote_0.4,
+       x=margin_0.4,
+       axes=FALSE,
+       x.label = "",
+       y.label = "",
+       title = "",
+       x.lim = c(-1,1),
+       y.lim = c(0,1),
+       col.lines = "green")
+par(new=TRUE)
+rdplot(y=vote_0.1,
+       x=margin_0.1,
+       axes=FALSE,
+       x.label = "",
+       y.label = "",
+       title = "",
+       x.lim = c(-1,1),
+       y.lim = c(0,1),
+       col.lines = "yellow")
+with(subset(Lee2008,margin<=0),lines(margin,pred,col="Red"))
+with(subset(Lee2008,margin>0),lines(margin,pred,col="Red"))
+legend("topleft",legend = c("margin +/- 0.8","margin +/- 0.4","margin +/- 0.1","margin +/- 1"),
+       text.col = c("blue","green","yellow","red"),
+       bty = "n")
+# The significance of treatment effect decreases as bandwidth decreases. 
+# Standard error of the treatment effect increases as bandwidth decreases.
+# This could due to high order of polynominals. 
+# The red and blue lines almost perfectly overlaid, except at the tail on the left side. 
+# However, the yellow line deviate a lot from other lines.
+
+#hi
+summary(rdrobust(Lee2008$vote, #sharp RD in our case
+         Lee2008$margin,
+         kernel = "uniform"))
+#ii
+summary(rdrobust(Lee2008$vote, #default is triangular kernal 
+                 Lee2008$margin))
+#iii
+summary(rdrobust(Lee2008$vote, 
+                 Lee2008$margin,
+                 kernel = "epanechnikov"))
+# The bandwidth are 0.122, 0.134, and 0.125 for uniform, triangular, and epanechnikov kernals respectively
+# The treatment effect are 0.067, 0.063, and 0.062 for the aforementioned kernals respectively.
+# Standard errors are the same across different kernals.
+# We can see that the result are largely similar.
+
+#i
+# The parametric estimate of treatment effect is 0.07659 while the non parametric estimates 
+# are around 0.65. We can see discrepancy in estimates. This could due to optimal bandwidth 
+# selection in non parametric methods while the parametric method uses the whole sample.
+
+#j
+margin_h<- Lee2008$margin[Lee2008$margin>=-0.122 & Lee2008$margin<= 0.122] #optimal bandwidth h
+vote_h<- Lee2008$vote[Lee2008$margin>=-0.122 & Lee2008$margin<= 0.122]
+d_h<- as.numeric(margin_h>0)
+summary(lm(vote_h~d_h+margin_h+I(d_h*margin_h)))
+# The treatment effect is 0.068 which is very close to the non parametric method with uniform kernal with optimal bandwidth selected.
+
+#k
+library(rdd)
+output<-DCdensity(Lee2008$margin, #McCrary's test
+                   ext.out = TRUE)
+abline(v=0,col=2,
+       lty=2,
+       lwd=1)
+print(c(output$theta, output$p, output$bw))
+# The p-value is well above 95% level. We do  not reject H0. There is no sorting /manipulation.
+# RD design is a valid approach to this dataset.
+
+
+#import adkw.dta
+#a
+# Answers are typed up in a word file.
+
+#b
+summary(adkw)
+
+#c
+adkw<- na.omit(adkw)
+hist(adkw$gestat,
+     main = "Gestational age in weeks",
+     xlab = "Weeks")
+par(new=TRUE, mar=c(5,4,4,4))
+plot(density(adkw$gestat),
+     xlab = "", 
+     ylab = "", 
+     main = "", 
+     axes=FALSE)
+axis(4)
+mtext("Density", side = 4, line = 3)
+
+hist(adkw$dbirwt,
+     main = "Birth weight in grams",
+     xlab = "Grams")
+par(new=TRUE, mar=c(5,4,4,4))
+plot(density(adkw$dbirwt),
+     xlab = "", 
+     ylab = "", 
+     main = "", 
+     axes=FALSE)
+axis(4)
+mtext("Density", side = 4, line = 3)
+
+hist(adkw$death1year,
+     main = "Death in less than 1 year",
+     xlab = "1/0")
+par(new=TRUE, mar=c(5,4,4,4))
+plot(density(adkw$death1year),
+     xlab = "", 
+     ylab = "", 
+     main = "", 
+     axes=FALSE)
+axis(4)
+mtext("Density", side = 4, line = 3)
+
+#Majority of babies spent 30-35 weeks in mother's womb. 
+# There are pronounced reporting heaps at the gram equivalents of ounce intervals.
+#Althought there are also reporting heaps at "round" gram numbers, these heaps are 
+#much smaller than those observed at gram equivalents of ounces intervals.
+#I do not observe irregular reporting heaps around the 1500g threshold of interest,
+#consistent with women being unable to predict birth weight in advance of birth
+#with the accuracy necessary to move their newborn from just above 1500 g to just below.
+# There are a lot more babies survived than died.
+
+#d
+plot(adkw$dbirwt,adkw$death1year,
+     main = "Plot of birth weight on mortality",
+     xlab = "Grams",
+     ylab = "Mortality")
+# It is very hard to tell from the plot. Mortality spreads over from weight below 1450 to over 1550.
+
+#Replicate figure 2a
+range(adkw$dbirwt) # The birthweight in our data set range from 1415 to 1585
+x<-matrix(nrow = 171, ncol = 1)
+bw<- unique(sort(adkw$dbirwt)) 
+for (i in 1:length(bw)) {
+  x[i,1]<- sum(adkw$death1year[adkw$dbirwt<=bw[i]], na.rm = TRUE)/length(adkw$death1year[adkw$dbirwt<=bw[i]])
+}
+x<- as.data.frame(cbind(x,bw)) 
+
+plot(x$bw[seq.int(1, length(x$bw), 20)], x$V1[seq.int(1, length(x$V1), 20)],
+     main = "One-year mortality",
+     xlab = "Birth weight(g)",
+     ylab = "",
+     xlim = c(1425,1585))
+abline(v=1500)
+# We can see a possible discontinuity around birth weight of 1500g. 
+#It seems like the intensive care is working; since babies being put into the box have lower rate in death. (<=1500g)
+
+#e
+plot(adkw$gestat, adkw$death1year,
+     main = "Plot of gestational age on mortality",
+     xlab = "Weeks",
+     ylab = "Mortality")
+# This is also very hard to comment. But there seems to be more baby survived than died if they spent more time in mother's womb.
